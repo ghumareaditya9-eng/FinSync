@@ -185,7 +185,7 @@ FinSync/
 
 ```bash
 # Clone the repository
-git clone https://github.com/whoknows1409/FinSync.git
+git clone https://github.com/ghumareaditya9-eng/FinSync.git
 cd FinSync
 
 # Install backend dependencies
@@ -271,10 +271,10 @@ All protected endpoints require a JWT Bearer token in the `Authorization` header
 
 ## Author
 
-**Omkar Bhoir**
+**Aditya Ghumare**
 
-- GitHub: [@whoknows1409](https://github.com/whoknows1409)
-- Email: immortalomi14@gmail.com
+- GitHub: [@ghumareaditya9-eng](https://github.com/ghumareaditya9-eng)
+- Email: ghumareaditya9@gmail.com
 
 ---
 
@@ -282,6 +282,6 @@ All protected endpoints require a JWT Bearer token in the `Authorization` header
 
 **Built with Next.js, Express, MongoDB, and Google Gemini AI**
 
-**Contributors: Omkar Bhoir, Daksh Bari, Aditya Ghumare**
+**Contributors: Aditya Ghumare , Omkar Bhoir, Daksh Bari**
 
 </div>
