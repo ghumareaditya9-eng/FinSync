@@ -1,0 +1,106 @@
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const dotenv = require('dotenv');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+
+// Load environment variables
+dotenv.config();
+
+const app = express();
+
+// Trust first proxy (Render's load balancer) so req.ip returns the real client IP.
+// Required for rate limiting to work correctly per-user instead of per-proxy.
+app.set('trust proxy', 1);
+
+// Middleware
+// Configure CORS to accept requests from frontend
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://finsync-w6ce.onrender.com',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      // Reject unknown origins in production, allow in development
+      if (process.env.NODE_ENV === 'production') {
+        callback(new Error('CORS: Origin not allowed'));
+      } else {
+        callback(null, true);
+      }
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
+
+// Security middleware
+app.use(helmet());                  // Set security HTTP headers
+
+// Increase payload size limits
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(cookieParser());
+
+// Catch JSON parse errors and return generic message
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ success: false, message: 'Invalid JSON in request body' });
+  }
+  next(err);
+});
+
+// Custom NoSQL injection sanitizer (Express 5 compatible)
+// express-mongo-sanitize tries to overwrite req.query which is read-only in Express 5,
+// so we sanitize req.body and req.params manually instead.
+const sanitizeValue = (obj) => {
+  if (obj === null || typeof obj !== 'object') return obj;
+  for (const key of Object.keys(obj)) {
+    if (key.startsWith('$')) {
+      delete obj[key];
+    } else if (typeof obj[key] === 'object') {
+      sanitizeValue(obj[key]);
+    }
+  }
+  return obj;
+};
+
+app.use((req, res, next) => {
+  if (req.body) sanitizeValue(req.body);
+  if (req.params) sanitizeValue(req.params);
+  next();
+});
+
+// Settings routes are registered in server.js
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', message: 'Server is running' });
+});
+
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'Backend is awake and ready',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Global error handler is registered in server.js after all routes
+
+module.exports = app;
